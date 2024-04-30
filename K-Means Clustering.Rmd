@@ -1,0 +1,103 @@
+---
+title: "K-Medias"
+author: "Laurenth Ordoñez"
+date: "4/29/2024"
+output: html_document
+---
+
+#El algoritmo K-medias es un método de clustering muy utilizado en el campo del aprendizaje automático. Su objetivo principal es agrupar un conjunto de datos en diferentes grupos o clústeres de manera que los elementos dentro de cada grupo sean similares entre sí y diferentes de los elementos de otros grupos.
+
+#El algoritmo K-medias funciona de la siguiente manera: primero, se selecciona un número de clústeres K. Luego, se asignan aleatoriamente K centroides, que son puntos representativos dentro de cada clúster. A continuación, se itera hasta que se alcance la convergencia, es decir, hasta que los centroides ya no cambien de posición significativamente.
+
+#Durante cada iteración, se asigna cada punto de datos al clúster cuyo centroide esté más cerca. Luego, se recalcula el centroide de cada clúster como el promedio de todos los puntos asignados a ese clúster. Este proceso se repite hasta que los centroides converjan y los clústeres estén estables.
+
+#El algoritmo K-medias tiene diversas aplicaciones en diferentes campos, como la segmentación de clientes en marketing, la agrupación de documentos en minería de textos y la clasificación de imágenes en visión por computadora. Es una técnica poderosa para explorar y comprender la estructura subyacente de conjuntos de datos no etiquetados.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(cluster) # Algoritmo de clustering 
+library(factoextra)
+library(gridExtra)
+
+mov <- read.csv('customer_movie_rating.csv')
+head(mov)
+```
+
+```{r}
+mov <- na.omit(mov)
+mov <- scale(mov)
+head(mov)
+```
+
+Al aplicar `scale(mov)`, se estandarizan todas las columnas en `mov`, lo que significa que todas las variables tendrán una media de cero y una desviación estándar de uno. Esto puede ser útil al aplicar algoritmos de clustering como K-means, ya que ayuda a que las variables tengan un impacto similar en la agrupación, especialmente si las variables están en diferentes escalas.
+
+```{r}
+k <- kmeans(mov, centers = 5, nstart = 25)
+str(k)
+```
+
+1.  **cluster:** Es un vector que indica a qué cluster pertenece cada observación en tus datos. Cada elemento del vector corresponde a una fila de tus datos y contiene un número entero que representa el cluster al que pertenece esa observación. El atributo `names` contiene los nombres de las filas originales de tus datos.
+
+2.  **centers:** Es una matriz que contiene las coordenadas de los centroides de cada cluster en el espacio de las variables. Cada fila de la matriz corresponde a un cluster y cada columna corresponde a una variable en tus datos. Los `dimnames` indican los nombres de los clusters (filas) y las variables (columnas).
+
+3.  **totss:** Es la suma total de cuadrados, que representa la variabilidad total de tus datos antes de la agrupación en clusters.
+
+4.  **withinss:** Es un vector que contiene la suma de cuadrados dentro de cada cluster. Representa la variabilidad dentro de cada cluster.
+
+5.  **tot.withinss:** Es la suma total de cuadrados dentro de todos los clusters, es decir, la suma de `withinss`.
+
+6.  **betweenss:** Es la suma de cuadrados entre los clusters, que representa la variabilidad entre los clusters.
+
+7.  **size:** Es un vector que contiene el número de observaciones en cada cluster.
+
+8.  **iter:** Es el número de iteraciones que tomó el algoritmo K-means para converger a una solución.
+
+9.  **ifault:** Es un código de error que indica si hubo algún problema durante la ejecución del algoritmo. Un valor de 0 indica que no hubo problemas.
+
+```{r}
+fviz_cluster(k, data = mov)
+```
+
+```{r, message=FALSE}
+mov %>%
+as_tibble() %>%
+mutate(cluster = k$cluster,
+state = row.names(mov)) %>%
+ggplot(aes(Horror, Romcom, Action, Comedy, Fantasy, color =
+factor(cluster), label = state)) +
+geom_text()
+```
+
+```{r}
+k2 <- kmeans(mov, centers = 2, nstart = 25)
+k3 <- kmeans(mov, centers = 3, nstart = 25)
+k4 <- kmeans(mov, centers = 4, nstart = 25)
+# Graficos para comparar
+p2 <- fviz_cluster(k2, geom = "point", data = mov) + ggtitle("k = 2")
+p3 <- fviz_cluster(k3, geom = "point", data = mov) + ggtitle("k = 3")
+p4 <- fviz_cluster(k4, geom = "point", data = mov) + ggtitle("k = 4")
+p5 <- fviz_cluster(k, geom = "point", data = mov) + ggtitle("k = 5")
+library(gridExtra)
+grid.arrange(p2, p3, p4, p5, nrow = 2)
+```
+
+```{r}
+set.seed(123)
+fviz_nbclust(mov, kmeans, method = "wss")
+```
+
+```{r}
+set.seed(123)
+fviz_nbclust(mov, kmeans, method =
+"silhouette")
+```
+
+#K2 Distribuyó los datos en 2 grupos sin colisión con cada uno de los datos. Este es considerado como el mejor número de grupos mediante el uso de los métodos de codo y silueta.
+
+#K3 Aunque no hay colisión de datos, este se considera menos efectivo.
+
+#K4 Mientras que hay un grupo que permanece igual, los otros grupos tienen demasiados datos que chocan entre sí y se vuelve difícil de ver.
+
+#K5 Aunque supuestamente representa cada variable de los datos, el gráfico se vuelve aún más abarrotado en el lado izquierdo y ahora es aún más difícil de ver.
+
+# Conclución : De los datos anteriores, podemos ver claramente que, como sugiere el uso del gráfico de codo y silueta, el mejor K-means para estos datos es K2 (el que tiene 2 grupos). El gráfico de K2 se puede entender fácilmente ya que divide los datos en 2 grupos principales sin colisión con cada dato.
